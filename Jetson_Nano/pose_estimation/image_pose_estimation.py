@@ -2,6 +2,7 @@ import os
 import glob
 import cv2
 import numpy as np
+import time
 from tensorflow.lite.python.interpreter import Interpreter
 import tensorflow as tf 
 
@@ -127,6 +128,8 @@ floating_model = (input_details[0]['dtype'] == np.float32)
 input_mean = 127.5
 input_std = 127.5
 
+times = []
+
 for image_path in images:
     image = cv2.imread(image_path)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -142,7 +145,11 @@ for image_path in images:
     interpreter.set_tensor(input_index, input_data)
     
     # Ejecutar la inferencia
+    start_time = time.perf_counter()
     interpreter.invoke()
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    times.append(elapsed_time)
 
     # Obtener los resultados del tensor de salida
     output_data = interpreter.get_tensor(output_details[0]['index'])
@@ -160,3 +167,9 @@ for image_path in images:
     cv2.imshow(image_path,image_back_to_original_bgr)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+total_time = sum(times)
+times_size = len(times)
+average_time = total_time / times_size
+average_time = average_time * 1000
+print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
