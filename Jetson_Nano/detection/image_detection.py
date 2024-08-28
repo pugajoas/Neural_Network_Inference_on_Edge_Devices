@@ -21,6 +21,12 @@ images = glob.glob(path_images + '/*.jpg') + glob.glob(path_images + '/*.png') +
 images = sorted(images)
 
 interpreter = Interpreter(model_path=path_model)
+#try:
+#	gpu_delegate = lite.experimental.load_delegate('libtensorflowlite_gpu_delegate.so')
+#	interpreter._interpreter._add_delegate(gpu_delegate)
+#except Exception as e:
+#	print(f"No se pudo configurar el GPUDelegate: {e}")
+
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
@@ -105,6 +111,7 @@ for image_path in images:
 # Limpia las ventanas abiertas por cv2
 cv2.destroyAllWindows()
 
+print(times)
 total_time = sum(times)
 times_size = len(times)
 average_time = total_time / times_size
