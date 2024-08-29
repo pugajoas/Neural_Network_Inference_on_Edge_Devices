@@ -3,7 +3,13 @@ import cv2
 import numpy as np
 import glob
 import time
+import argparse
 import tensorflow as tf
+
+parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
+parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.set_defaults(show = True)
+args = parser.parse_args()
 
 path = os.getcwd()
 
@@ -55,7 +61,6 @@ for image_path in images:
     
     for i in range(num_detections):
         if ((detection_scores[i] > min_conf_threshold) and (detection_scores[i] <= 1.0)):
-            print(labels[int(detection_classes[i])])
             # Se obtienen las dimensiones de las cajas a dibujar
             ymin = int(max(1,(detection_boxes[i][0] * imH)))
             xmin = int(max(1,(detection_boxes[i][1] * imW)))
@@ -73,13 +78,14 @@ for image_path in images:
             cv2.putText(image, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) 
             
             detections.append([object_name, detection_scores[i], xmin, ymin, xmax, ymax])
-
-    # Se muestra la imagen recibida con la deteccion realizada
-    cv2.imshow('Object detector', image)
-        
-    # Press any key to continue to next image, or press 'q' to quit
-    if cv2.waitKey(0) == ord('q'):
-        break
+    
+    if args.show:
+        # Se muestra la imagen recibida con la deteccion realizada
+        cv2.imshow('Object detector', image)
+            
+        # Press any key to continue to next image, or press 'q' to quit
+        if cv2.waitKey(0) == ord('q'):
+            break
 
 # Limpia las ventanas abiertas por cv2
 cv2.destroyAllWindows()

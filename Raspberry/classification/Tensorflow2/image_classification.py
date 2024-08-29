@@ -6,6 +6,11 @@ import numpy as np
 import argparse
 import tensorflow as tf
 
+parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
+parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.set_defaults(show = True)
+args = parser.parse_args()
+
 path = os.getcwd()
 
 # Path para las etiquetas
@@ -31,10 +36,10 @@ def preprocess_image(image_path, target_size = (128,128)):
 	image_resized = cv2.resize(image_rgb, target_size)
 	image_resized = image_resized / 255.0
 	input_data = np.expand_dims(image_resized, axis=0)
-	return input_data
+	return input_data, image
 
 for image_path in images:
-	input_image = preprocess_image(image_path)
+	input_image, image = preprocess_image(image_path)
 	# Ejecutar la inferencia
 	start_time = time.perf_counter()
 	result = infer(tf.convert_to_tensor(input_image, dtype=tf.float32))
@@ -50,10 +55,22 @@ for image_path in images:
 	# Encontrar el índice de la clase con la probabilidad más alta
 	predicted_class_index = np.argmax(probabilities)
 	predicted_class_probability = probabilities[predicted_class_index] * 100
-	print(f"Prediccion: {labels[predicted_class_index]} con {predicted_class_probability:.2f}%")
+	#print(f"Prediccion: {labels[predicted_class_index]} con {predicted_class_probability:.2f}%")
+	label = f"{labels[predicted_class_index]} {predicted_class_probability:.2f}%"
+	cv2.putText(image, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2) 
+	
+	if args.show:
+		# Se muestra la imagen recibida con la deteccion realizada
+		cv2.imshow('Object detector', image)
+            
+		# Press any key to continue to next image, or press 'q' to quit
+		if cv2.waitKey(0) == ord('q'):
+			break
+            
+# Limpia las ventanas abiertas por cv2
+cv2.destroyAllWindows()
 
 del times[0]
-print(times)
 total_time = sum(times)
 times_size = len(times)
 average_time = total_time / times_size
