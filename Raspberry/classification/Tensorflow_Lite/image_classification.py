@@ -3,7 +3,13 @@ import cv2
 import numpy as np
 import glob
 import time
+import argparse
 from tensorflow.lite.python.interpreter import Interpreter
+
+parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
+parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.set_defaults(show = True)
+args = parser.parse_args()
 
 path = os.getcwd()
 path_model = path + "/mobilenetv2quantized.tflite"
@@ -37,6 +43,22 @@ input_std = 127.5
 
 times = []
 
+image = cv2.imread(images[0])
+image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+imH, imW, _ = image.shape 
+image_resized = cv2.resize(image_rgb, (width, height))
+input_data = np.expand_dims(image_resized, axis=0)
+
+if floating_model:
+    input_data = (np.float32(input_data) - input_mean) / input_std
+
+# Establecer el tensor de entrada
+input_index = input_details[0]['index']
+interpreter.set_tensor(input_index, input_data)
+
+while True:
+    interpreter.invoke()
+
 for image_path in images:
     image = cv2.imread(image_path)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -62,14 +84,26 @@ for image_path in images:
     output_data = interpreter.get_tensor(output_details[0]['index'])
 
     # Si el modelo realiza clasificación y quieres la clase con la mayor puntuación
-    predicted_class = np.argmax(output_data)
+    predicted_class_index = np.argmax(output_data)
     if floating_model:
-        percentage = output_data[0][predicted_class] * 100
+        predicted_class_probability = output_data[0][predicted_class_index] * 100
     else:
-        percentage = (output_data[0][predicted_class] / 255) * 100
+        predicted_class_probability = (output_data[0][predicted_class_index] / 255) * 100
         
-    print(f"Predicción: {labels[predicted_class]} con {percentage:.2f}%")
+    label = f"{labels[predicted_class_index]} {predicted_class_probability:.2f}%"
+    cv2.putText(image, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2) 
+        
+    if args.show:
+        # Se muestra la imagen recibida con la deteccion realizada
+        cv2.imshow('Object detector', image)
+            
+		# Press any key to continue to next image, or press 'q' to quit
+        if cv2.waitKey(0) == ord('q'):
+            break
+        
+    #print(f"Predicción: {labels[predicted_class_index]} con {percentage:.2f}%")
 
+del times[0]
 total_time = sum(times)
 times_size = len(times)
 average_time = total_time / times_size

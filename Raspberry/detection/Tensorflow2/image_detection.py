@@ -25,19 +25,18 @@ path_images = path + "/imagenes"
 images = glob.glob(path_images + '/*.jpg') + glob.glob(path_images + '/*.png') + glob.glob(path_images + '/*.bmp')
 images = sorted(images)
 
-loaded_model = tf.saved_model.load(path + "/saved_model_efficientdet_d0")
+loaded_model = tf.saved_model.load(path + "/saved_model_efficientdet_lite0")
 infer = loaded_model.signatures['serving_default']
 times = []
 detections = []
 min_conf_threshold = 0.39
-
-def preprocess_image(image_path, target_size = (512,512)):
+    
+def preprocess_image(image_path):
 	image = cv2.imread(image_path)
 	image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-	imH, imW, _ = image.shape 
-	image_resized = cv2.resize(image_rgb, target_size)
+	imH, imW, _ = image.shape
 	#image_resized = image_resized / 255.0
-	input_data = np.expand_dims(image_resized, axis=0)
+	input_data = np.expand_dims(image_rgb, axis=0)
 	return input_data, imH, imW, image
 
 for image_path in images:
@@ -50,22 +49,18 @@ for image_path in images:
     times.append(elapsed_time)
     
     # Extraer los tensores del diccionario
-    raw_detection_boxes =  result['raw_detection_boxes'].numpy()
-    detection_multiclass_scores =  result['detection_multiclass_scores'].numpy()
-    detection_classes =  result['detection_classes'][0].numpy()
-    detection_boxes =  result['detection_boxes'][0].numpy()
-    raw_detection_scores =  result['raw_detection_scores'].numpy()
-    num_detections = int( result['num_detections'].numpy()[0])
-    detection_anchor_indices =  result['detection_anchor_indices'].numpy()
-    detection_scores =  result['detection_scores'][0].numpy()
+    detection_classes =  result['output_2'][0].numpy()
+    detection_boxes =  result['output_0'][0].numpy()
+    num_detections = int( result['output_3'].numpy()[0])
+    detection_scores =  result['output_1'][0].numpy()
     
     for i in range(num_detections):
         if ((detection_scores[i] > min_conf_threshold) and (detection_scores[i] <= 1.0)):
             # Se obtienen las dimensiones de las cajas a dibujar
-            ymin = int(max(1,(detection_boxes[i][0] * imH)))
-            xmin = int(max(1,(detection_boxes[i][1] * imW)))
-            ymax = int(min(imH,(detection_boxes[i][2] * imH)))
-            xmax = int(min(imW,(detection_boxes[i][3] * imW)))
+            ymin = int(detection_boxes[i][0])
+            xmin = int(detection_boxes[i][1])
+            ymax = int(detection_boxes[i][2])
+            xmax = int(detection_boxes[i][3])
 
             cv2.rectangle(image, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
 

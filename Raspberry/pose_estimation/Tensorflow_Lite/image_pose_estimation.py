@@ -3,8 +3,14 @@ import glob
 import cv2
 import numpy as np
 import time
+import argparse
 from tensorflow.lite.python.interpreter import Interpreter
 import tensorflow as tf 
+
+parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
+parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.set_defaults(show = True)
+args = parser.parse_args()
 
 cyan = (255, 255, 0)
 magenta = (255, 0, 255)
@@ -163,10 +169,12 @@ for image_path in images:
     image_back_to_original_bgr = cv2.cvtColor(image_back_to_original, cv2.COLOR_RGB2BGR)
     #loop(image,rescaled_output_data,threshold=0.11)
 
-    cv2.imshow(image_path,image_back_to_original_bgr)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if args.show:
+        cv2.imshow(image_path,image_back_to_original_bgr)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
+del times[0]
 total_time = sum(times)
 times_size = len(times)
 average_time = total_time / times_size
