@@ -3,8 +3,13 @@ import cv2
 import numpy as np
 import glob
 import time
+import argparse
 from tensorflow.lite.python.interpreter import Interpreter
-import time
+
+parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
+parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.set_defaults(show = True)
+args = parser.parse_args()
 
 path = os.getcwd()
 path_model = path + "/mobilenetv2quantized.tflite"
@@ -20,7 +25,7 @@ images = sorted(images)
 
 #Cargar el archivo de las etiquetas
 with open(path_labels, 'r') as f:
-    labels = [line.strip() for line in f.readlines()]
+	labels = [line.strip() for line in f.readlines()]
 
 interpreter = Interpreter(model_path=path_model)
 interpreter.allocate_tensors()
@@ -38,38 +43,68 @@ input_std = 127.5
 
 times = []
 
+def preprocess_image(image_path, width, height):
+	image = cv2.imread(image_path)
+	image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+	imH, imW, _ = image.shape 
+	image_resized = cv2.resize(image_rgb, (width, height))
+	input_data = np.expand_dims(image_resized, axis=0)
+	return input_data, image
+
+input_data, image = preprocess_image(images[0], width, height)
+
+if floating_model:
+		input_data = (np.float32(input_data) - input_mean) / input_std
+    
+# Establecer el tensor de entrada
+input_index = input_details[0]['index']
+interpreter.set_tensor(input_index, input_data)
+
+while True:
+	interpreter.invoke()
+
 for image_path in images:
-    image = cv2.imread(image_path)
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    imH, imW, _ = image.shape 
-    image_resized = cv2.resize(image_rgb, (width, height))
-    input_data = np.expand_dims(image_resized, axis=0)
+	image = cv2.imread(image_path)
+	image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+	imH, imW, _ = image.shape 
+	image_resized = cv2.resize(image_rgb, (width, height))
+	input_data = np.expand_dims(image_resized, axis=0)
     
-    if floating_model:
-        input_data = (np.float32(input_data) - input_mean) / input_std
+	if floating_model:
+		input_data = (np.float32(input_data) - input_mean) / input_std
     
-    # Establecer el tensor de entrada
-    input_index = input_details[0]['index']
-    interpreter.set_tensor(input_index, input_data)
+	# Establecer el tensor de entrada
+	input_index = input_details[0]['index']
+	interpreter.set_tensor(input_index, input_data)
     
-    # Ejecutar la inferencia
-    start_time = time.perf_counter()
-    interpreter.invoke()
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    times.append(elapsed_time)
+	# Ejecutar la inferencia
+	start_time = time.perf_counter()
+	interpreter.invoke()
+	end_time = time.perf_counter()
+	elapsed_time = end_time - start_time
+	times.append(elapsed_time)
 
-    # Obtener los resultados del tensor de salida
-    output_data = interpreter.get_tensor(output_details[0]['index'])
+	# Obtener los resultados del tensor de salida
+	output_data = interpreter.get_tensor(output_details[0]['index'])
+	# Si el modelo realiza clasificación y quieres la clase con la mayor puntuación
+	predicted_class_index = np.argmax(output_data)
+	if floating_model:
+		predicted_class_probability = output_data[0][predicted_class_index] * 100
+	else:
+		predicted_class_probability = (output_data[0][predicted_class_index] / 255) * 100
 
-    # Si el modelo realiza clasificación y quieres la clase con la mayor puntuación
-    predicted_class = np.argmax(output_data)
-    if floating_model:
-        percentage = output_data[0][predicted_class] * 100
-    else:
-        percentage = (output_data[0][predicted_class] / 255) * 100
+	label = f"{labels[predicted_class_index]} {predicted_class_probability:.2f}%"
+	cv2.putText(image, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2) 
         
-    print(f"Prediccion: {labels[predicted_class]} con {percentage:.2f}%")
+	if args.show:
+		# Se muestra la imagen recibida con la deteccion realizada
+		cv2.imshow('Object detector', image)
+            
+		# Press any key to continue to next image, or press 'q' to quit
+		if cv2.waitKey(0) == ord('q'):
+			break
+        
+	#print(f"Prediccion: {labels[predicted_class]} con {percentage:.2f}%")
 
 total_time = sum(times)
 times_size = len(times)

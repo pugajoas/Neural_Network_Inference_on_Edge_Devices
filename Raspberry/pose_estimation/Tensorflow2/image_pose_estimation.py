@@ -129,7 +129,7 @@ for image_path in images:
 	input_image, imH, imW, image, image_resized = preprocess_image(image_path)
 	# Ejecutar la inferencia
 	start_time = time.perf_counter()
-	result = infer(tf.convert_to_tensor(input_image, dtype=tf.int32))
+	result = infer(tf.convert_to_tensor(input_image, dtype=tf.uint8))
 	end_time = time.perf_counter()
 	elapsed_time = end_time - start_time
 	times.append(elapsed_time)

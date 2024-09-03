@@ -8,6 +8,7 @@ import tensorflow as tf
 
 parser = argparse.ArgumentParser(description="Recibe los parametros necesarios del numero de epochs y el dispositivo a utilizar")
 parser.add_argument('--dispositivo',type=str, choices = ['cpu','gpu'], default = 'cpu')
+parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
 args = parser.parse_args()
 dispositivo = args.dispositivo
 
@@ -131,6 +132,10 @@ with tf.device(dispositivo):
 		image_back_to_original = cv2.resize(image_resized, (original_width, original_height))
 		return image_back_to_original
 
+	input_image, imH, imW, image, image_resized = preprocess_image(images[0])
+	while True:
+		result = infer(tf.convert_to_tensor(input_image, dtype=tf.int32))
+
 	for image_path in images:
 		input_image, imH, imW, image, image_resized = preprocess_image(image_path)
 		# Ejecutar la inferencia
@@ -145,10 +150,11 @@ with tf.device(dispositivo):
 		image_back_to_original = resize_back(image_resized, (imH, imW))
 		image_back_to_original_bgr = cv2.cvtColor(image_back_to_original, cv2.COLOR_RGB2BGR)
 
-		cv2.imshow(image_path,image_back_to_original_bgr)
-		cv2.waitKey(0)
-		cv2.destroyAllWindows()
-
+		if args.show:
+			cv2.imshow(image_path,image_back_to_original_bgr)
+			cv2.waitKey(0)
+			cv2.destroyAllWindows()
+	
 	total_time = sum(times)
 	times_size = len(times)
 	average_time = total_time / times_size
