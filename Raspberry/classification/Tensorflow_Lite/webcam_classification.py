@@ -6,11 +6,6 @@ import time
 import argparse
 from tensorflow.lite.python.interpreter import Interpreter
 
-parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
-parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
-parser.set_defaults(show = True)
-args = parser.parse_args()
-
 path = os.getcwd()
 path_model = path + "/mobilenetv2quantized.tflite"
 #path_model = path + "/mobilenetv2.tflite"
@@ -43,12 +38,42 @@ input_std = 127.5
 
 times = []
 
-for image_path in images:
-    image = cv2.imread(image_path)
+def preprocess_image(image, width, height):
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     imH, imW, _ = image.shape 
     image_resized = cv2.resize(image_rgb, (width, height))
     input_data = np.expand_dims(image_resized, axis=0)
+    return input_data, imH, imW, image
+    
+# Abre la primera cámara (normalmente la cámara USB)
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("No se pudo abrir la cámara")
+    exit()
+
+frame_rate_calc = 1
+# Obtener la frecuencia del reloj en ticks por segundo
+freq = cv2.getTickFrequency()
+
+# Inicializar el contador de frames
+frame_count = 0
+
+# Obtener el tiempo de inicio
+t1 = cv2.getTickCount()
+
+while True:
+    
+    # Captura frame por frame
+    ret, frame = cap.read()
+    frame_count += 1
+
+    # Si el frame se capturó correctamente
+    if not ret:
+        print("No se pudo recibir el frame")
+        break
+    
+    input_data, imH, imW, image = preprocess_image(frame, width, height)
     
     if floating_model:
         input_data = (np.float32(input_data) - input_mean) / input_std
@@ -76,20 +101,27 @@ for image_path in images:
         
     label = f"{labels[predicted_class_index]} {predicted_class_probability:.2f}%"
     cv2.putText(image, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2) 
-        
-    if args.show:
-        # Se muestra la imagen recibida con la deteccion realizada
-        cv2.imshow('Object detector', image)
-            
-		# Press any key to continue to next image, or press 'q' to quit
-        if cv2.waitKey(0) == ord('q'):
-            break
-        
-    #print(f"Predicción: {labels[predicted_class_index]} con {percentage:.2f}%")
+    
+    # Pone los fps en la esquina
+    cv2.putText(image,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
+	
+    # Se muestra la imagen recibida con la deteccion realizada
+    cv2.imshow('Object detector', image)
+    
+	# Calcular framerate
+    t2 = cv2.getTickCount()
+    time1 = (t2 - t1) / freq
+    frame_rate_calc = frame_count / time1  # Calcula FPS
+	
+    total_time = sum(times)
+    times_size = len(times)
+    average_time = total_time / times_size
+    average_time = average_time * 1000
+    print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
+	
+    # Sale del bucle si se presiona la tecla 'q'
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-del times[0]
-total_time = sum(times)
-times_size = len(times)
-average_time = total_time / times_size
-average_time = average_time * 1000
-print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
+# Limpia las ventanas abiertas por cv2
+cv2.destroyAllWindows()

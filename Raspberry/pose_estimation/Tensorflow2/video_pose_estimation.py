@@ -40,17 +40,11 @@ EDGE_COLORS = {
 width = 192
 height = 192
 
-#Cargar las imagenes para test
-path_images = path + "/imagenes"
-images = glob.glob(path_images + '/*.jpg') + glob.glob(path_images + '/*.png') + glob.glob(path_images + '/*.bmp')
-images = sorted(images)
-
 loaded_model = tf.saved_model.load(path + "/saved_model_singlepose_lightning")
 infer = loaded_model.signatures['serving_default']
 times = []
 
-def preprocess_image(image_path, target_size = (192,192)):
-	image = cv2.imread(image_path)
+def preprocess_image(image, target_size = (192,192)):
 	image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 	imH, imW, _ = image.shape 
 	image_resized = cv2.resize(image_rgb, target_size)
@@ -124,9 +118,37 @@ def resize_back(image_resized, original_shape):
 	# Redimensionar la imagen redimensionada de vuelta a las dimensiones originales
 	image_back_to_original = cv2.resize(image_resized, (original_width, original_height))
 	return image_back_to_original	
+	
 
-for image_path in images:
-	input_image, imH, imW, image, image_resized = preprocess_image(image_path)
+# Abre la primera cámara (normalmente la cámara USB)
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+	print("No se pudo abrir la cámara")
+	exit()
+
+frame_rate_calc = 1
+# Obtener la frecuencia del reloj en ticks por segundo
+freq = cv2.getTickFrequency()
+
+# Inicializar el contador de frames
+frame_count = 0
+
+# Obtener el tiempo de inicio
+t1 = cv2.getTickCount()
+
+while True:
+	# Captura frame por frame
+	ret, frame = cap.read()
+	frame_count += 1
+
+	# Si el frame se capturó correctamente
+	if not ret:
+		print("No se pudo recibir el frame")
+		break
+	
+	input_image, imH, imW, image, image_resized = preprocess_image(frame)
+	
 	# Ejecutar la inferencia
 	start_time = time.perf_counter()
 	result = infer(tf.convert_to_tensor(input_image, dtype=tf.int32))
@@ -138,15 +160,24 @@ for image_path in images:
 	# Reescalar coordenadas (si es necesario)
 	image_back_to_original = resize_back(image_resized, (imH, imW))
 	image_back_to_original_bgr = cv2.cvtColor(image_back_to_original, cv2.COLOR_RGB2BGR)
+	
+	# Pone los fps en la esquina
+	cv2.putText(image_back_to_original_bgr,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
 
-	if args.show:
-		cv2.imshow(image_path,image_back_to_original_bgr)
-		cv2.waitKey(0)
-		cv2.destroyAllWindows()
+	cv2.imshow('Video en Vivo',image_back_to_original_bgr)
+	
+	# Calcular framerate
+	t2 = cv2.getTickCount()
+	time1 = (t2 - t1) / freq
+	frame_rate_calc = frame_count / time1  # Calcula FPS
+	
+	total_time = sum(times)
+	times_size = len(times)
+	average_time = total_time / times_size
+	average_time = average_time * 1000
+	print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
+	
+	# Sale del bucle si se presiona la tecla 'q'
+	if cv2.waitKey(1) & 0xFF == ord('q'):
+		break
 
-del times[0]
-total_time = sum(times)
-times_size = len(times)
-average_time = total_time / times_size
-average_time = average_time * 1000
-print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
