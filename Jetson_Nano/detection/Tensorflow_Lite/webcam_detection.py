@@ -21,11 +21,6 @@ path_labels = path + "/labels.txt"
 with open(path_labels, 'r') as f:
     labels = [line.strip() for line in f.readlines()]
 
-#Cargar las imagenes para test
-path_images = path + "/imagenes"
-images = glob.glob(path_images + '/*.jpg') + glob.glob(path_images + '/*.png') + glob.glob(path_images + '/*.bmp')
-images = sorted(images)
-
 interpreter = Interpreter(model_path=path_model)
 interpreter.allocate_tensors()
 
@@ -45,8 +40,7 @@ input_std = 127.5
 outname = output_details[0]['name']
 times = []
 
-def preprocess_image(image_path, width, height):
-	image = cv2.imread(image_path)
+def preprocess_image(image, width, height):
 	image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 	imH, imW, _ = image.shape
 	#image_resized = image_resized / 255.0
@@ -57,8 +51,43 @@ def preprocess_image(image_path, width, height):
 detections = []
 min_conf_threshold = 0.5
 
-for image_path in images:
-	input_image, imH, imW, image = preprocess_image(image_path, width, height)
+# Abre la primera cámara (normalmente la cámara USB)
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("No se pudo abrir la cámara")
+    exit()
+
+frame_rate_calc = 1
+# Obtener la frecuencia del reloj en ticks por segundo
+freq = cv2.getTickFrequency()
+
+# Inicializar el contador de frames
+frame_count = 0
+
+# Obtener el tiempo de inicio
+t1 = cv2.getTickCount()
+
+# Definir la resolución deseada
+camara_width = 640
+camara_height = 480
+
+# Establecer la resolución de la cámara
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, camara_width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, camara_height)
+
+while True:
+	
+	# Captura frame por frame
+	ret, frame = cap.read()
+	frame_count += 1
+
+    	# Si el frame se capturó correctamente
+	if not ret:
+		print("No se pudo recibir el frame")
+		break	
+
+	input_image, imH, imW, image = preprocess_image(frame, width, height)
     
 	if floating_model:
 		input_data = (np.float32(input_data) - input_mean) / input_std
@@ -100,21 +129,30 @@ for image_path in images:
 				cv2.rectangle(image, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) 
 				cv2.putText(image, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) 	    
 				detections.append([object_name, detection_scores[i], xmin, ymin, xmax, ymax])
+	
+	# Pone los fps en la esquina
+	cv2.putText(image,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA) 
+        
+	# Se muestra la imagen recibida con la deteccion realizada
+	cv2.imshow('Object detector', image)
 
-	if args.show:	
-		# Se muestra la imagen recibida con la deteccion realizada
-		cv2.imshow('Object detector', image)
+	# Calcular framerate
+	t2 = cv2.getTickCount()
+	time1 = (t2 - t1) / freq
+	frame_rate_calc = frame_count / time1  # Calcula FPS
 
-		# Press any key to continue to next image, or press 'q' to quit
-		if cv2.waitKey(0) == ord('q'):
-			break
+	#total_time = sum(times)
+	#times_size = len(times)
+	#average_time = total_time / times_size
+	#average_time = average_time * 1000
+	#print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
+
+	# Sale del bucle si se presiona la tecla 'q'
+	if cv2.waitKey(1) & 0xFF == ord('q'):
+		break
+
 
 # Limpia las ventanas abiertas por cv2
 cv2.destroyAllWindows()
 
-total_time = sum(times)
-times_size = len(times)
-average_time = total_time / times_size
-average_time = average_time * 1000
-print(f"Tiempo de inferencia promedio: {average_time:.2f} ms")
 

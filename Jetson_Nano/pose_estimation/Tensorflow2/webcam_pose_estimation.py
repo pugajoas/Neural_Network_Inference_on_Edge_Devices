@@ -8,7 +8,6 @@ import tensorflow as tf
 
 parser = argparse.ArgumentParser(description="Recibe los parametros necesarios del numero de epochs y el dispositivo a utilizar")
 parser.add_argument('--dispositivo',type=str, choices = ['cpu','gpu'], default = 'cpu')
-parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
 args = parser.parse_args()
 dispositivo = args.dispositivo
 
@@ -47,17 +46,11 @@ with tf.device(dispositivo):
 	width = 192
 	height = 192
 
-	#Cargar las imagenes para test
-	path_images = path + "/imagenes"
-	images = glob.glob(path_images + '/*.jpg') + glob.glob(path_images + '/*.png') + glob.glob(path_images + '/*.bmp')
-	images = sorted(images)
-
 	loaded_model = tf.saved_model.load(path + "/saved_model_singlepose_lightning")
 	infer = loaded_model.signatures['serving_default']
 	times = []
 
-	def preprocess_image(image_path, target_size = (192,192)):
-		image = cv2.imread(image_path)
+	def preprocess_image(image, target_size = (192,192)):
 		image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 		imH, imW, _ = image.shape 
 		image_resized = cv2.resize(image_rgb, target_size)
@@ -132,8 +125,43 @@ with tf.device(dispositivo):
 		image_back_to_original = cv2.resize(image_resized, (original_width, original_height))
 		return image_back_to_original
 
-	for image_path in images:
-		input_image, imH, imW, image, image_resized = preprocess_image(image_path)
+	# Abre la primera cámara (normalmente la cámara USB)
+	cap = cv2.VideoCapture(0)
+
+	if not cap.isOpened():
+	    print("No se pudo abrir la cámara")
+	    exit()
+
+	frame_rate_calc = 1
+	# Obtener la frecuencia del reloj en ticks por segundo
+	freq = cv2.getTickFrequency()
+
+	# Inicializar el contador de frames
+	frame_count = 0
+
+	# Obtener el tiempo de inicio
+	t1 = cv2.getTickCount()
+
+	# Definir la resolución deseada
+	camara_width = 640
+	camara_height = 480
+
+	# Establecer la resolución de la cámara
+	cap.set(cv2.CAP_PROP_FRAME_WIDTH, camara_width)
+	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, camara_height)
+
+	while True:
+
+		# Captura frame por frame
+		ret, frame = cap.read()
+		frame_count += 1
+
+	    	# Si el frame se capturó correctamente
+		if not ret:
+			print("No se pudo recibir el frame")
+			break
+
+		input_image, imH, imW, image, image_resized = preprocess_image(frame)
 		# Ejecutar la inferencia
 		start_time = time.perf_counter()
 		result = infer(tf.convert_to_tensor(input_image, dtype=tf.int32))
@@ -146,10 +174,21 @@ with tf.device(dispositivo):
 		image_back_to_original = resize_back(image_resized, (imH, imW))
 		image_back_to_original_bgr = cv2.cvtColor(image_back_to_original, cv2.COLOR_RGB2BGR)
 
-		if args.show:
-			cv2.imshow(image_path,image_back_to_original_bgr)
-			cv2.waitKey(0)
-			cv2.destroyAllWindows()
+		
+		# Pone los fps en la esquina
+		cv2.putText(image_back_to_original_bgr,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
+		
+		# Se muestra la imagen recibida con la deteccion realizada
+		cv2.imshow('Object detector', image_back_to_original_bgr)
+
+		# Calcular framerate
+		t2 = cv2.getTickCount()
+		time1 = (t2 - t1) / freq
+		frame_rate_calc = frame_count / time1  # Calcula FPS
+    
+		# Sale del bucle si se presiona la tecla 'q'
+		if cv2.waitKey(1) & 0xFF == ord('q'):
+			break
 	
 	total_time = sum(times)
 	times_size = len(times)
