@@ -12,13 +12,13 @@ Sigue estos pasos para instalar los diferentes modelos en tu Raspberry:
 1. **Instalar el contenedor de Docker**
 	Para este paso tenemos que ejecutar el siguiente comando que descargará la imagen del contenedor:
 	```sh
-	docker pull pugajoas/tfrasp5:v6.0
+	sudo docker pull pugajoas/tfrasp5:v6.0
 	```
 
 2. **Correr el contenedor de Docker**
 	Para esto tenermos que ejecutar el siguiente comando una vez descargado la imagen del contenedor.
 	```sh
-	docker run --rm -it --privileged --env="DISPLAY" --volume="/tmp/.X11-unix:/tmp/.X11-unix"  -v <directorio_en_el_host>:<directorio_en_el_contenedor> pugajoas/tfrasp5:v6.0
+	sudo docker run --rm -it --privileged --env="DISPLAY" --volume="/tmp/.X11-unix:/tmp/.X11-unix"  -v <directorio_en_el_host>:<directorio_en_el_contenedor> pugajoas/tfrasp5:v6.0
 	```
 	--privileged: Nos sirve para poder utilizar la webcam dentro del contenedor
 
