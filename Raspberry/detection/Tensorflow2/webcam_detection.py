@@ -50,6 +50,14 @@ frame_count = 0
 # Obtener el tiempo de inicio
 t1 = cv2.getTickCount()
 
+# Definir la resolución deseada
+camara_width = 640
+camara_height = 480
+
+# Establecer la resolución de la cámara
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, camara_width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, camara_height)
+
 while True:
     
     # Captura frame por frame

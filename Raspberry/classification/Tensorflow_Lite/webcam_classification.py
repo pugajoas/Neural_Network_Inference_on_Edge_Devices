@@ -13,11 +13,6 @@ path_model = path + "/mobilenetv2quantized.tflite"
 # Path para las etiquetas
 path_labels = path + "/labels.txt"
 
-#Cargar las imagenes para test
-path_images = path + "/imagenes"
-images = glob.glob(path_images + '/*.jpg') + glob.glob(path_images + '/*.png') + glob.glob(path_images + '/*.bmp')
-images = sorted(images)
-
 #Cargar el archivo de las etiquetas
 with open(path_labels, 'r') as f:
     labels = [line.strip() for line in f.readlines()]
@@ -61,6 +56,14 @@ frame_count = 0
 
 # Obtener el tiempo de inicio
 t1 = cv2.getTickCount()
+
+# Definir la resolución deseada
+camara_width = 640
+camara_height = 480
+
+# Establecer la resolución de la cámara
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, camara_width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, camara_height)
 
 while True:
     
