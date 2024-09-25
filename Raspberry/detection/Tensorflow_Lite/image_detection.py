@@ -8,11 +8,19 @@ from tensorflow.lite.python.interpreter import Interpreter
 
 parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
 parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.add_argument('--save-results', action = 'store_true', dest = 'save', help = 'Guardar las imagenes de salida')
 parser.set_defaults(show = True)
+parser.set_defaults(save = False)
 args = parser.parse_args()
 
 path = os.getcwd()
 path_model = path + "/efficientdet_lite0.tflite"
+
+if args.save:
+	result_dir = 'results'
+	result_path = os.path.join(path, result_dir)
+	if not os.path.exists(result_path):
+		os.makedirs(result_path)
 
 # Path para las etiquetas
 path_labels = path + "/labels.txt"
@@ -106,6 +114,11 @@ for image_path in images:
 		# Press any key to continue to next image, or press 'q' to quit
 		if cv2.waitKey(0) == ord('q'):
 			break
+			
+	if args.save:
+		image_name = os.path.basename(image_path)
+		image_savepath = os.path.join(path,result_dir,image_name)
+		cv2.imwrite(image_savepath, image)
 
 # Limpia las ventanas abiertas por cv2
 cv2.destroyAllWindows()

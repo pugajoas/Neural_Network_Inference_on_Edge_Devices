@@ -9,7 +9,9 @@ import tensorflow as tf
 parser = argparse.ArgumentParser(description="Recibe los parametros necesarios del numero de epochs y el dispositivo a utilizar")
 parser.add_argument('--dispositivo',type=str, choices = ['cpu','gpu'], default = 'cpu')
 parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.add_argument('--save-results', action = 'store_true', dest = 'save', help = 'Guardar las imagenes de salida')
 parser.set_defaults(show = True)
+parser.set_defaults(save = False)
 args = parser.parse_args()
 dispositivo = args.dispositivo
 
@@ -20,6 +22,12 @@ else:
 
 with tf.device(dispositivo):
 	path = os.getcwd()
+	
+	if args.save:
+		result_dir = 'results'
+		result_path = os.path.join(path, result_dir)
+		if not os.path.exists(result_path):
+			os.makedirs(result_path)
 
 	# Path para las etiquetas
 	path_labels = path + "/labels.txt"
@@ -45,10 +53,6 @@ with tf.device(dispositivo):
 		imH, imW, _ = image.shape
 		input_data = np.expand_dims(image_rgb, axis=0)
 		return input_data, imH, imW, image
-
-	input_image, imH, imW, image = preprocess_image(images[0])
-	while True:
-		result = infer(tf.convert_to_tensor(input_image, dtype=tf.uint8))
 
 	for image_path in images:
 		input_image, imH, imW, image = preprocess_image(image_path)
@@ -91,6 +95,11 @@ with tf.device(dispositivo):
 			# Press any key to continue to next image, or press 'q' to quit
 			if cv2.waitKey(0) == ord('q'):
 				break
+				
+		if args.save:
+			image_name = os.path.basename(image_path)
+			image_savepath = os.path.join(path,result_dir,image_name)
+			cv2.imwrite(image_savepath, image)
 
 	# Limpia las ventanas abiertas por cv2
 	cv2.destroyAllWindows()
