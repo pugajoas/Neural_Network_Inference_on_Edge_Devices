@@ -9,7 +9,9 @@ import tensorflow as tf
 
 parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
 parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.add_argument('--save-results', action = 'store_true', dest = 'save', help = 'Guardar las imagenes de salida')
 parser.set_defaults(show = True)
+parser.set_defaults(save = False)
 args = parser.parse_args()
 
 cyan = (255, 255, 0)
@@ -39,6 +41,12 @@ EDGE_COLORS = {
 path = os.getcwd()
 path_model = path + "/singlepose_thunder_quantized.tflite"
 #path_model = path + "/singlepose_thunder.tflite"
+
+if args.save:
+    result_dir = 'results'
+    result_path = os.path.join(path, result_dir)
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
 
 #Cargar las imagenes para test
 path_images = path + "/imagenes"
@@ -173,6 +181,11 @@ for image_path in images:
         cv2.imshow(image_path,image_back_to_original_bgr)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+        
+    if args.save:
+        image_name = os.path.basename(image_path)
+        image_savepath = os.path.join(path,result_dir,image_name)
+        cv2.imwrite(image_savepath, image_back_to_original_bgr)
 
 del times[0]
 total_time = sum(times)

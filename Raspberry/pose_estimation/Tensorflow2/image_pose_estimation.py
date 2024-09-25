@@ -8,10 +8,18 @@ import tensorflow as tf
 
 parser = argparse.ArgumentParser(description = "Recibe los parametros necesarios, show_images")
 parser.add_argument('--no-show', action = 'store_false', dest = 'show', help = 'Mostrar la imagen detectada')
+parser.add_argument('--save-results', action = 'store_true', dest = 'save', help = 'Guardar las imagenes de salida')
 parser.set_defaults(show = True)
+parser.set_defaults(save = False)
 args = parser.parse_args()
 
 path = os.getcwd()
+
+if args.save:
+	result_dir = 'results'
+	result_path = os.path.join(path, result_dir)
+	if not os.path.exists(result_path):
+		os.makedirs(result_path)
 
 cyan = (255, 255, 0)
 magenta = (255, 0, 255)
@@ -129,8 +137,7 @@ for image_path in images:
 	input_image, imH, imW, image, image_resized = preprocess_image(image_path)
 	# Ejecutar la inferencia
 	start_time = time.perf_counter()
-	while True:
-		result = infer(tf.convert_to_tensor(input_image, dtype=tf.int32))
+	result = infer(tf.convert_to_tensor(input_image, dtype=tf.int32))
 	end_time = time.perf_counter()
 	elapsed_time = end_time - start_time
 	times.append(elapsed_time)
@@ -144,6 +151,11 @@ for image_path in images:
 		cv2.imshow(image_path,image_back_to_original_bgr)
 		cv2.waitKey(0)
 		cv2.destroyAllWindows()
+		
+	if args.save:
+		image_name = os.path.basename(image_path)
+		image_savepath = os.path.join(path,result_dir,image_name)
+		cv2.imwrite(image_savepath, image_back_to_original_bgr)
 
 del times[0]
 total_time = sum(times)
